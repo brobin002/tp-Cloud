@@ -62,11 +62,13 @@ func handleConn(conn net.Conn) {
 	entering <- ch
 
 	//send chat message via os.stdin
-	rl := bufio.NewReader(conn)
+	rl := bufio.NewScanner(conn)
+	for rl.Scan() {
+		line := rl.Text()
 
-	line, _ := rl.ReadString('\n')
-
-	messages <- line
+		messages <- line
+	}
+	
 
 	//ctrl-D leaves os.stdin and leaves chatting
 	leaving <- ch
