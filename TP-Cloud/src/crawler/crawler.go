@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 	"net/http"
-        "os"
+    "os"
 	"log"
 	"golang.org/x/net/html"
 )
@@ -13,10 +13,35 @@ import (
 // Extract makes an HTTP GET request to the specified URL, parses
 // the response as HTML, and returns the links in the HTML document.
 func Extract(url string) ([]string, error) {
-	//TODO
+	var links []string
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	defer resp.Body.Close()
+	doc, _ := html.Parse(resp.Body)
+	
+	var visitNode func(*html.Node)
+	visitNode = func (n *html.Node)  {
+		if n.Type == html.ElementNode && n.Data == "a"{
+			for _, a := range n.Attr {
+				if a.Key == "href" {
+					fmt.Printf("%v\n", a.Val)
+					links = append(links, a.Val)
+				}
+			}
+		}
+	}
+
+
 	forEachNode(doc, visitNode, nil)
 	return links, nil
 }
+
+
+
 
 //!-Extract
 
@@ -30,7 +55,7 @@ func forEachNode(n *html.Node, pre, post func(n *html.Node)) {
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		//recursive call
-		//TODO
+		forEachNode(c, pre, post)
 	}
 	if post != nil {
 		post(n)
@@ -46,20 +71,33 @@ func crawl(url string) []string {
 	return list
 }
 
+
+
 //!+
 func main() {
+
 	worklist := make(chan []string)  // lists of URLs, may have duplicates
 	unseenLinks := make(chan string) // de-duplicated URLs
+	seen := make(map[string]bool)
 
 	// Add command-line arguments to worklist.
 	go func() { worklist <- os.Args[1:] }()
 
 	// Create 20 crawler goroutines to fetch each unseen link.
 	for i := 0; i < 20; i++ {
-		//TODO
+		go func() {
+			for link := range unseenLinks {
+				worklist <- crawl(link)
+			}
+		} ()
 	}
 
-	// The main goroutine de-duplicates worklist items
-	// and sends the unseen ones to the crawlers.
-	//TODO
+	for links := range worklist {
+		for _,link := range links{
+			if (seen[link] == false){
+				unseenLinks <- link
+				seen[link] = true
+			}
+		}
+	} 
 }
